@@ -1,0 +1,12 @@
+planning:
+288.5K tokens
+3.29PM - 5.19PM * -- 1h 50m
+
+implementation: 
+746.5K tokens
+5.21PM - 6.11PM -- 50m -- implementation
+6.45PM - 9.26PM * -- 2h 45m
+
+54 files; 6380 LoC
+
+* : hands-off back and forth

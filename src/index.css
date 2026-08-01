@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+/* Fonts: Inter for UI, JetBrains Mono for scores/reasoning/IDs (UX.md). */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    margin: 0;
+    background-color: #ffffff;
+    color: #0f172a; /* slate-900 */
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  /* thin, unobtrusive scrollbars for the kanban + panels */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+  }
+  *::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 9999px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@layer components {
+  /* uppercase, letter-spaced, small slate-400 section labels (UX.md) */
+  .section-label {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: #94a3b8;
+  }
+}
+
+/* ---- overlay / drawer / modal animations, driven by Radix data-state ---- */
+@keyframes c6-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes c6-overlay-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes c6-drawer-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+@keyframes c6-drawer-out {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+@keyframes c6-modal-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes c6-modal-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(8px) scale(0.98); }
+}
+
+.c6-overlay[data-state="open"] { animation: c6-overlay-in 0.2s ease both; }
+.c6-overlay[data-state="closed"] { animation: c6-overlay-out 0.15s ease both; }
+.c6-drawer[data-state="open"] { animation: c6-drawer-in 0.28s cubic-bezier(0.32, 0.72, 0, 1) both; }
+.c6-drawer[data-state="closed"] { animation: c6-drawer-out 0.2s ease both; }
+.c6-modal[data-state="open"] { animation: c6-modal-in 0.2s ease both; }
+.c6-modal[data-state="closed"] { animation: c6-modal-out 0.15s ease both; }
+
+/* standalone entrance (toasts, freshly-rendered cards) */
+.c6-toast { animation: c6-modal-in 0.22s ease both; }
+.c6-rise { animation: c6-modal-in 0.28s ease both; }
+
+/* incoming swipe card: zoom + fade in (independent of the outgoing direction) */
+@keyframes c6-swipe-in {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+.c6-swipe-in { animation: c6-swipe-in 0.34s cubic-bezier(0.22, 1, 0.36, 1); }
+
+/* gate card attention pulse (AI-style border glow) when jumped to from the stepper */
+@keyframes c6-gate-pulse {
+  0% { box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.65); }
+  100% { box-shadow: 0 0 0 12px rgba(99, 102, 241, 0); }
+}
+.c6-gate-highlight {
+  border-radius: 0.75rem;
+  animation: c6-gate-pulse 0.85s ease-out 2;
+}

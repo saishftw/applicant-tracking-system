@@ -96,6 +96,100 @@ export function buildInterviewResult(
 }
 
 // ---------------------------------------------------------------------------
+// Full interview transcript — the raw source behind an interview gate. Stored
+// results only carry a short excerpt, so we expand it deterministically into a
+// realistic multi-turn transcript for the "view full transcript" modal.
+// ---------------------------------------------------------------------------
+const TRANSCRIPT_PANEL: Record<number, string> = {
+  3: "First interview · HR / Talent Acquisition",
+  5: "Manager interview · Hiring manager",
+  6: "Final interview · General Manager",
+};
+
+const TRANSCRIPT_OPENERS = [
+  "Thanks for making the time. To start, walk me through the experience you think is most relevant here.",
+  "Good to meet you. Give me a quick sense of what you've been doing most recently.",
+  "Appreciate you coming in. Tell me about the background you'd bring to this role.",
+];
+
+const TRANSCRIPT_EXPERIENCE = [
+  "Most of my recent work maps closely to this scope — I've owned the core processes end to end.",
+  "I've spent the last few years hands-on in a comparable role, carrying the day-to-day and the details.",
+  "My background is operational: I've run the essential work and cleaned up the edge cases myself.",
+];
+
+const TRANSCRIPT_SCENARIO: Record<number, string> = {
+  3: "Let's take a real situation from the role. How would you handle it?",
+  5: "Walk me through how you'd run this day to day — and a tougher moment with your team.",
+  6: "At this level I care about judgement. Talk me through your approach and why it fits us.",
+};
+
+const TRANSCRIPT_FOLLOWUPS: [string, string][] = [
+  [
+    "How do you stay organised when several things compete for your attention?",
+    "I prioritise by risk and deadline, keep a single tracker, and confirm the important items in writing.",
+  ],
+  [
+    "Where do you draw the line between deciding yourself and escalating?",
+    "I move on the reversible things quickly and escalate anything with compliance or cost exposure.",
+  ],
+  [
+    "What would you want to improve in your first ninety days?",
+    "I'd map the recurring work first, then fix the one process that causes the most rework.",
+  ],
+];
+
+const TRANSCRIPT_CLOSERS = [
+  "That's everything from my side. We'll come back to you on next steps.",
+  "Good — thank you. You'll hear from us shortly on where this goes.",
+  "Appreciate the answers. We'll be in touch about the next stage.",
+];
+
+/** Pull the candidate's quoted words out of an interview `rawInput` snippet. */
+function transcriptExcerptText(rawInput: string): string {
+  const quoted = rawInput.match(/:\s*['"]([\s\S]*)['"]\s*$/);
+  const inner = quoted?.[1] ?? rawInput.replace(/^Interview transcript(?: excerpt)?:\s*/i, "");
+  return inner.replace(/[…\s.]+$/, "").trim();
+}
+
+/**
+ * Expand a stored interview result into a full, realistic transcript. Deterministic
+ * per candidate + gate, with the recorded excerpt embedded as the key answer.
+ */
+export function buildInterviewTranscript(
+  candidateName: string,
+  role: string,
+  order: number,
+  rawInput: string,
+): string {
+  const first = candidateName.split(/\s+/)[0] ?? candidateName;
+  const pick = <T>(arr: T[], salt: string): T =>
+    arr[Math.floor(hash01(`${candidateName}|g${order}|${salt}`) * arr.length)]!;
+
+  const panel = TRANSCRIPT_PANEL[order] ?? "Interview";
+  const scenario = TRANSCRIPT_SCENARIO[order] ?? "Let's take a real situation from the role. How would you handle it?";
+  const excerpt = transcriptExcerptText(rawInput);
+  const [followQ, followA] = pick(TRANSCRIPT_FOLLOWUPS, "follow");
+
+  return [
+    `${panel} · ${role}`,
+    "Duration: ~35 min · Panel of 1",
+    "",
+    `Interviewer: ${pick(TRANSCRIPT_OPENERS, "open")}`,
+    `${first}: ${pick(TRANSCRIPT_EXPERIENCE, "exp")}`,
+    "",
+    `Interviewer: ${scenario}`,
+    `${first}: ${excerpt}.`,
+    "",
+    `Interviewer: ${followQ}`,
+    `${first}: ${followA}`,
+    "",
+    `Interviewer: ${pick(TRANSCRIPT_CLOSERS, "close")}`,
+    `${first}: Thank you — I appreciate the conversation.`,
+  ].join("\n");
+}
+
+// ---------------------------------------------------------------------------
 // CommsDraft templates (LLM-draft → recruiter approve → simulated send, H1).
 // ---------------------------------------------------------------------------
 const SIGN_OFF = `Warm regards,\n${RECRUITER_NAME}\nTalent Acquisition · Contra6 Recruit`;

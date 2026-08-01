@@ -1,9 +1,11 @@
-import { ArrowRight, Sparkles, UserCheck } from "lucide-react";
+import { useState } from "react";
+import { ArrowRight, Expand, Sparkles, UserCheck } from "lucide-react";
 import { type GateResult } from "@/schema";
 import { formatDate, formatScore, relativeTime, scoreDenominator } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { OutcomeChip } from "./OutcomeChip";
 import { Badge } from "./ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 
 /** The full AI evaluation card: indigo left border, score + outcome (AI and any
  *  human decision side by side), headline, reasoning, and source evidence.
@@ -12,13 +14,16 @@ export function AIEvaluationCard({
   result,
   gateLabel,
   showSnippet = true,
+  fullTranscript,
   className,
 }: {
   result: GateResult;
   gateLabel?: string;
   showSnippet?: boolean;
+  fullTranscript?: string;
   className?: string;
 }) {
+  const [transcriptOpen, setTranscriptOpen] = useState(false);
   const den = scoreDenominator(result.scoreUnit);
   const isImport = result.scoreUnit === "percentage";
   return (
@@ -59,9 +64,19 @@ export function AIEvaluationCard({
 
       {showSnippet && (
         <div className="mt-4">
-          <p className="section-label mb-1.5">
-            {isImport ? "Imported artifact" : "Source snippet evidence"}
-          </p>
+          <div className="mb-1.5 flex items-center justify-between gap-3">
+            <p className="section-label">{isImport ? "Imported artifact" : "Source snippet evidence"}</p>
+            {fullTranscript && (
+              <button
+                type="button"
+                onClick={() => setTranscriptOpen(true)}
+                className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-indigo-600 transition hover:text-indigo-700"
+              >
+                <Expand className="size-3.5" />
+                View full transcript
+              </button>
+            )}
+          </div>
           <p className="border-l-2 border-slate-200 pl-3 font-mono text-xs italic leading-relaxed text-slate-500">
             {result.rawInput}
           </p>
@@ -71,6 +86,20 @@ export function AIEvaluationCard({
       <p className="mt-4 font-mono text-[11px] text-slate-400">
         Evaluated {relativeTime(result.evaluatedAt)} · {formatDate(result.evaluatedAt)}
       </p>
+
+      {fullTranscript && (
+        <Dialog open={transcriptOpen} onOpenChange={setTranscriptOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>{gateLabel ?? "Interview"} — full transcript</DialogTitle>
+              <DialogDescription>The raw source the AI evaluated · {result.evaluatorVersion}</DialogDescription>
+            </DialogHeader>
+            <div className="max-h-[60vh] overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-slate-700">{fullTranscript}</pre>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

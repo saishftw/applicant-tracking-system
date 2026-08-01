@@ -52,6 +52,8 @@ interface AppState {
   commsDrafts: CommsDraft[];
   compositeSummaries: CompositeSummary[];
   facets: Record<string, CandidateFacets>;
+  /** Full interview transcripts keyed by gate-result id (live-evaluated ones). */
+  transcripts: Record<string, string>;
 
   // ui / navigation
   activePositionId: string | null;
@@ -112,6 +114,7 @@ export const useAppStore = create<AppState>((set, get) => {
     commsDrafts: seedCommsDrafts,
     compositeSummaries: seedCompositeSummaries,
     facets: allFacets,
+    transcripts: {},
 
     activePositionId: null,
     activeScreen: "dashboard",
@@ -347,6 +350,9 @@ export const useAppStore = create<AppState>((set, get) => {
         set({
           gateResults: [...state.gateResults.filter((r) => !(r.candidateId === id && r.gateOrder === order)), result],
           candidates: patchById(state.candidates, id, { status }),
+          transcripts: transcript.trim()
+            ? { ...state.transcripts, [result.id]: transcript.trim() }
+            : state.transcripts,
           evaluatingCandidateId: null,
         });
         if (result.aiOutcome === "borderline") get().toastMsg(`${def.label} came back Borderline. Your decision needed.`, "warn");

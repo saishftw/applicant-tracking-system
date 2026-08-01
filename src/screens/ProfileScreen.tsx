@@ -18,6 +18,7 @@ import { candidateResults, pipelineStage, type PipelineStage } from "@/lib/pipel
 import { formatDate, relativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { readUploadedText } from "@/lib/read-file";
+import { buildInterviewTranscript } from "@/data/evaluations";
 import { Avatar } from "@/components/Avatar";
 import { AIEvaluationCard } from "@/components/AIEvaluationCard";
 import { GateProgress } from "@/components/GateProgress";
@@ -46,6 +47,7 @@ function Profile({ candidate, position }: { candidate: Candidate; position: Posi
   const commsDrafts = useAppStore((s) => s.commsDrafts);
   const compositeSummaries = useAppStore((s) => s.compositeSummaries);
   const facets = useAppStore((s) => s.facets);
+  const transcripts = useAppStore((s) => s.transcripts);
   const goTo = useAppStore((s) => s.goTo);
   const openComms = useAppStore((s) => s.openComms);
 
@@ -143,13 +145,23 @@ function Profile({ candidate, position }: { candidate: Candidate; position: Posi
               <div className="space-y-4">
                 {results.map((r) => {
                   const isPulsing = pulse?.order === r.gateOrder;
+                  const def = position.gateDefinitions.find((d) => d.order === r.gateOrder);
+                  const fullTranscript =
+                    def?.type === "interview_eval"
+                      ? transcripts[r.id] ??
+                        buildInterviewTranscript(candidate.name, position.jd.jobRole.role, r.gateOrder, r.rawInput)
+                      : undefined;
                   return (
                     <div
                       key={isPulsing ? `g${r.gateOrder}-${pulse.nonce}` : `g${r.gateOrder}`}
                       id={`gate-card-${r.gateOrder}`}
                       className={cn("scroll-mt-4", isPulsing && "c6-gate-highlight")}
                     >
-                      <AIEvaluationCard result={r} gateLabel={gateLabel(r.gateOrder)} />
+                      <AIEvaluationCard
+                        result={r}
+                        gateLabel={gateLabel(r.gateOrder)}
+                        fullTranscript={fullTranscript}
+                      />
                     </div>
                   );
                 })}

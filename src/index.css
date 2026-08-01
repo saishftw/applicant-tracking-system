@@ -86,13 +86,6 @@
 .c6-toast { animation: c6-modal-in 0.22s ease both; }
 .c6-rise { animation: c6-modal-in 0.28s ease both; }
 
-/* incoming swipe card: zoom + fade in (independent of the outgoing direction) */
-@keyframes c6-swipe-in {
-  from { opacity: 0; transform: scale(0.9); }
-  to { opacity: 1; transform: scale(1); }
-}
-.c6-swipe-in { animation: c6-swipe-in 0.34s cubic-bezier(0.22, 1, 0.36, 1); }
-
 /* gate card attention pulse (AI-style border glow) when jumped to from the stepper */
 @keyframes c6-gate-pulse {
   0% { box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.65); }

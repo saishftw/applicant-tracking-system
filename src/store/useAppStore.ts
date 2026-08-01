@@ -28,7 +28,13 @@ import { resultAtGate } from "@/lib/pipeline";
 export type Screen = "dashboard" | "jd" | "shortlist" | "swipe" | "candidates" | "profile";
 export type SwipeDir = "advance" | "reject" | "park";
 export type ToastTone = "info" | "success" | "warn" | "ai";
-export type Toast = { id: number; message: string; tone: ToastTone };
+export type Toast = { id: number; message: string; tone: ToastTone; action?: "undo-swipe" };
+
+type SwipeUndo = {
+  candidate: Candidate;
+  previousDecision?: SwipeDir;
+  createdDraftId?: string;
+};
 
 function patchById<T extends { id: string }>(arr: T[], id: string, patch: Partial<T>): T[] {
   return arr.map((x) => (x.id === id ? { ...x, ...patch } : x));
@@ -55,6 +61,7 @@ interface AppState {
   evaluatingCandidateId: string | null;
   sourcingPositionId: string | null;
   swipeDecisions: Record<string, SwipeDir>;
+  lastSwipeUndo: SwipeUndo | null;
   toast: Toast | null;
 
   // navigation
@@ -66,7 +73,7 @@ interface AppState {
   openProfile: (id: string) => void;
   openComms: (id: string) => void;
   closeComms: () => void;
-  toastMsg: (message: string, tone?: ToastTone) => void;
+  toastMsg: (message: string, tone?: ToastTone, action?: Toast["action"]) => void;
   clearToast: () => void;
 
   // JD editing (blocked once the role is frozen)
@@ -76,6 +83,7 @@ interface AppState {
 
   // Part 1 swipe
   swipe: (id: string, dir: SwipeDir) => void;
+  undoLastSwipe: () => void;
   unpark: (id: string) => void;
   convertToApplicant: (id: string) => void;
 
@@ -112,6 +120,7 @@ export const useAppStore = create<AppState>((set, get) => {
     evaluatingCandidateId: null,
     sourcingPositionId: null,
     swipeDecisions: {},
+    lastSwipeUndo: null,
     toast: null,
 
     goHome: () => set({ activeScreen: "dashboard", activePositionId: null, selectedCandidateId: null }),
@@ -161,8 +170,12 @@ export const useAppStore = create<AppState>((set, get) => {
     openProfile: (id) => set({ selectedCandidateId: id, activeScreen: "profile" }),
     openComms: (id) => set({ commsDraftId: id }),
     closeComms: () => set({ commsDraftId: null }),
-    toastMsg: (message, tone = "info") => set({ toast: { id: Date.now(), message, tone } }),
-    clearToast: () => set({ toast: null }),
+    toastMsg: (message, tone = "info", action) =>
+      set((state) => ({
+        toast: { id: Date.now(), message, tone, action },
+        lastSwipeUndo: action === "undo-swipe" ? state.lastSwipeUndo : null,
+      })),
+    clearToast: () => set({ toast: null, lastSwipeUndo: null }),
 
     updateJd: (mutator) => {
       const pos = activePos();
@@ -194,25 +207,67 @@ export const useAppStore = create<AppState>((set, get) => {
     },
 
     swipe: (id, dir) => {
-      const { candidates, commsDrafts } = get();
+      const { candidates, commsDrafts, swipeDecisions } = get();
       const cand = candidates.find((c) => c.id === id);
       if (!cand) return;
-      set({ swipeDecisions: { ...get().swipeDecisions, [id]: dir } });
+
+      let nextCandidates = candidates;
+      let nextDrafts = commsDrafts;
+      let createdDraftId: string | undefined;
+      let message = "";
+      let tone: ToastTone = "info";
 
       if (dir === "reject") {
-        set({ candidates: patchById(candidates, id, { status: "rejected" }) });
-        get().toastMsg(`${cand.name} rejected.`, "warn");
+        nextCandidates = patchById(candidates, id, { status: "rejected" });
+        message = `${cand.name} rejected.`;
+        tone = "warn";
       } else if (dir === "park") {
-        set({ candidates: patchById(candidates, id, { status: "parked" }) });
-        get().toastMsg(`${cand.name} parked for later.`, "info");
+        nextCandidates = patchById(candidates, id, { status: "parked" });
+        message = `${cand.name} parked for later.`;
       } else {
         const jr = posOf(cand)?.jd.jobRole;
         if (jr && !commsDrafts.some((d) => d.candidateId === id && d.trigger === "outreach")) {
-          set({ commsDrafts: [...commsDrafts, draftComms(cand, "outreach", jr)] });
+          const draft = draftComms(cand, "outreach", jr);
+          nextDrafts = [...commsDrafts, draft];
+          createdDraftId = draft.id;
         }
-        set({ candidates: patchById(candidates, id, { stage: "applicant", status: "active", currentGate: 2 }) });
-        get().toastMsg(`${cand.name} advanced. Outreach drafted, now in the pipeline at Gate 2.`, "ai");
+        nextCandidates = patchById(candidates, id, { stage: "applicant", status: "active", currentGate: 2 });
+        message = `${cand.name} advanced. Outreach drafted, now in the pipeline at Gate 2.`;
+        tone = "ai";
       }
+
+      set({
+        candidates: nextCandidates,
+        commsDrafts: nextDrafts,
+        swipeDecisions: { ...swipeDecisions, [id]: dir },
+        lastSwipeUndo: { candidate: cand, previousDecision: swipeDecisions[id], createdDraftId },
+      });
+      get().toastMsg(message, tone, "undo-swipe");
+    },
+
+    undoLastSwipe: () => {
+      const undo = get().lastSwipeUndo;
+      if (!undo) return;
+
+      const swipeDecisions = { ...get().swipeDecisions };
+      if (undo.previousDecision) swipeDecisions[undo.candidate.id] = undo.previousDecision;
+      else delete swipeDecisions[undo.candidate.id];
+
+      set({
+        candidates: get().candidates.map((candidate) =>
+          candidate.id === undo.candidate.id ? undo.candidate : candidate,
+        ),
+        commsDrafts: undo.createdDraftId
+          ? get().commsDrafts.filter((draft) => draft.id !== undo.createdDraftId)
+          : get().commsDrafts,
+        swipeDecisions,
+        lastSwipeUndo: null,
+        toast: {
+          id: Date.now(),
+          message: `${undo.candidate.name} restored to review.`,
+          tone: "info",
+        },
+      });
     },
 
     unpark: (id) => {

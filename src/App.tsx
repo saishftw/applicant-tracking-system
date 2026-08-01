@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/shell/AppShell";
+import { SmallScreenGate } from "@/components/shell/SmallScreenGate";
 import { useAppStore } from "@/store/useAppStore";
 import { DashboardScreen } from "@/screens/DashboardScreen";
 import { JDSetupScreen } from "@/screens/JDSetupScreen";
@@ -10,14 +11,17 @@ import { ProfileScreen } from "@/screens/ProfileScreen";
 export default function App() {
   const screen = useAppStore((s) => s.activeScreen);
   return (
-    <AppShell>
-      {screen === "dashboard" && <DashboardScreen />}
-      {screen === "jd" && <JDSetupScreen />}
-      {screen === "shortlist" && <ShortlistScreen />}
-      {screen === "swipe" && <SwipeScreen />}
-      {screen === "candidates" && <CandidatesScreen />}
-      {screen === "profile" && <ProfileScreen />}
-    </AppShell>
+    <>
+      <AppShell>
+        {screen === "dashboard" && <DashboardScreen />}
+        {screen === "jd" && <JDSetupScreen />}
+        {screen === "shortlist" && <ShortlistScreen />}
+        {screen === "swipe" && <SwipeScreen />}
+        {screen === "candidates" && <CandidatesScreen />}
+        {screen === "profile" && <ProfileScreen />}
+      </AppShell>
+      <SmallScreenGate />
+    </>
   );
 }
 
